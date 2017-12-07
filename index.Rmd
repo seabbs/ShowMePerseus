@@ -5,7 +5,10 @@ output:
     orientation: columns
     vertical_layout: fill
     theme: lumen
-    source_code: embed
+    source: "https://github.com/seabbs/ShowMePerseus"
+    navbar:
+      - { title: "By Sam Abbott, ", href: "https://samabbott.co.uk", align: right }
+      - { title: "Powered by rperseus", href: "https://ropensci.github.io/rperseus/index.html", align: right }    
 runtime:  shiny
 ---
 
