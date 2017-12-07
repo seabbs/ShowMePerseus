@@ -16,7 +16,7 @@ library(rperseus)
 ```
 
 ```{r global, include=FALSE}
-
+source("utils.R")
 ```
 
 Explore a Passage
@@ -25,9 +25,53 @@ Explore a Passage
 Column {.sidebar}
 -----------------------------------------------------------------------
 
+```{r inputs}
+selectInput("author", 
+             "Author:",
+            c("-", unique(perseus_catalog$group_name))
+          )
+conditionalPanel(condition = "input.author != '-'",
+                uiOutput("text_ui")
+                  )
+conditionalPanel(condition = "input.text != '-'",
+                uiOutput("language_ui")
+                  )
+```
+
+
+```{r reactive-inputs}
+  output$text_ui <- renderUI({
+    selectInput(inputId = 'text', 
+                label = 'Text:',
+                c("-", perseus_catalog %>% 
+                    filter(group_name %in% input$author) %>% 
+                    pull(label) %>% 
+                    unique))
+    })
+
+  output$language_ui <- renderUI({
+    selectInput(inputId = 'language', 
+                label = 'Language:',
+                c("-", perseus_catalog %>% 
+                    filter(group_name %in% input$author,
+                           label %in% input$text) %>% 
+                    pull(language) %>% 
+                    unique))
+    })
+```
+
 Row
 -----------------------------------------------------------------------
 
+```{r get-urn}
+urn <- reactive(
+  urn <- perseus_catalog %>% 
+  filter(group_name == input$author,
+         label == input$text,
+         language == input$language) %>% 
+  pull(urn) 
+)
+```
 ### Passage
 
 ```{r passage}
@@ -40,25 +84,12 @@ Row
 
 ```{r grammer-tab}
 DT::renderDataTable({
-  parse_excerpt("urn:cts:greekLit:tlg0031.tlg002.perseus-grc2", "5.1-5.2")
-},
-options = list(
-  pageLength = 20,
-scrollX = TRUE,
-scrollY = TRUE,
-orderClasses = TRUE,
-rownames = FALSE
-)
+  parse_excerpt(urn(), "5.1-5.2")
+}
 )
 ```
 
-### Definitions
 
-```{r definitions}
-
-
-
-```
 Render Parallels
 ==================================================================
 
