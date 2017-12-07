@@ -12,6 +12,7 @@ runtime:  shiny
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(DT)
+library(xml2)
 library(rperseus)
 ```
 
@@ -28,7 +29,8 @@ Column {.sidebar}
 ```{r inputs}
 selectInput("author", 
              "Author:",
-            c("-", unique(perseus_catalog$group_name))
+            c("-", unique(perseus_catalog$group_name)),
+            selected = "New Testament"
           )
 conditionalPanel(condition = "input.author != '-'",
                 uiOutput("text_ui")
@@ -36,8 +38,19 @@ conditionalPanel(condition = "input.author != '-'",
 conditionalPanel(condition = "input.text != '-'",
                 uiOutput("language_ui")
                   )
+conditionalPanel(condition = "input.language != '-'",
+                uiOutput("urn_ui")
+                  )
+conditionalPanel(condition = "input.urn != '-'",
+                textInput("excerpt",
+                          label = "Excerpt",
+                          value = "5.1-5.4",
+                          placeholder = "5.1-5.4")
+                  )
 ```
 
+Row
+-----------------------------------------------------------------------
 
 ```{r reactive-inputs}
   output$text_ui <- renderUI({
@@ -46,7 +59,8 @@ conditionalPanel(condition = "input.text != '-'",
                 c("-", perseus_catalog %>% 
                     filter(group_name %in% input$author) %>% 
                     pull(label) %>% 
-                    unique))
+                    unique),
+                selected = "Mark")
     })
 
   output$language_ui <- renderUI({
@@ -56,12 +70,10 @@ conditionalPanel(condition = "input.text != '-'",
                     filter(group_name %in% input$author,
                            label %in% input$text) %>% 
                     pull(language) %>% 
-                    unique))
+                    unique),
+                selected = "grc")
     })
-```
-
-Row
------------------------------------------------------------------------
+``` 
 
 ```{r get-urn}
 urn <- reactive(
@@ -72,19 +84,37 @@ urn <- reactive(
   pull(urn) 
 )
 ```
+
+```{r urn-opts}
+  output$urn_ui <- renderUI({
+    selectInput(inputId = 'urn', 
+                label = 'Urn:',
+                urn())
+    })
+
+```
+
+```{r reactive-excerpt}
+## NEED TO BE ABLE TO EXTRACT UNIQUE LIST OF EXCERPTS FOR THIS
+```
+
 ### Passage
 
 ```{r passage}
-
+renderText({
+  text <- get_perseus_text(urn = input$urn, excerpt = input$excerpt)
+text$text
+}
+)
 
 ```
 
 
-### Parsed Grammer Table
+### Parsed Grammer Table {.tabset data-height=800}
 
 ```{r grammer-tab}
 DT::renderDataTable({
-  parse_excerpt(urn(), "5.1-5.2")
+  parse_excerpt(input$urn, input$excerpt)
 }
 )
 ```
@@ -96,17 +126,46 @@ Render Parallels
 Column {.sidebar}
 -----------------------------------------------------------------------
 
+```{r parallels-shiny}
+ textInput("books",
+           label = "Books",
+           value = "Colossians, 1 Thessalonians, Romans",
+           placeholder = "Colossians, 1 Thessalonians, Romans")
+ textInput("parallels_excerpt",
+           label = "Excerpts:",
+           value = "1.4, 1.3, 8.35-8.39",
+           placeholder = "1.4, 1.3, 8.35-8.39")
+ selectInput("parallels_language",
+             label = "Language:",
+             unique(perseus_catalog$language),
+             selected = "grc")
+
+```
+
 Column
 -----------------------------------------------------------------------
 
 ### Parallels
 
+```{r process-input}
+books <- reactive(
+  input$books %>% 
+    str_split(", ") %>% 
+    unlist
+)
+
+parallels_excerpt <- reactive(
+  input$parallels_excerpt %>% 
+    str_split(", ") %>% 
+    unlist
+)
+```
 ```{r parallels}
 renderPlot(
-  tibble::tibble(label = c("Colossians", "1 Thessalonians", "Romans"),
-              excerpt = c("1.4", "1.3", "8.35-8.39")) %>%
+  tibble::tibble(label = books(),
+              excerpt = parallels_excerpt()) %>%
     dplyr::left_join(perseus_catalog) %>%
-    dplyr::filter(language == "grc") %>%
+    dplyr::filter(language == input$parallels_language) %>%
     dplyr::select(urn, excerpt) %>%
     as.list() %>%
     purrr::pmap_df(get_perseus_text) %>%
