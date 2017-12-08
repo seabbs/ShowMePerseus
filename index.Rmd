@@ -5,6 +5,7 @@ output:
     orientation: columns
     vertical_layout: fill
     theme: lumen
+    social: menu
     source: "https://github.com/seabbs/ShowMePerseus"
     navbar:
       - { title: "By Sam Abbott, ", href: "https://samabbott.co.uk", align: right }
