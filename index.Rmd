@@ -34,7 +34,7 @@ Column {.sidebar}
 selectInput("author", 
              "Author:",
             c("-", unique(perseus_catalog$group_name)),
-            selected = "New Testament"
+            selected = "-"
           )
 conditionalPanel(condition = "input.author != '-'",
                 uiOutput("text_ui")
@@ -43,17 +43,14 @@ conditionalPanel(condition = "input.text != '-'",
                 uiOutput("language_ui")
                   )
 conditionalPanel(condition = "input.language != '-'",
-                uiOutput("urn_ui")
+                uiOutput("description_ui")
                   )
-conditionalPanel(condition = "input.urn != '-'",
-                textInput("excerpt",
-                          label = "Excerpt",
-                          value = "5.1-5.4",
-                          placeholder = "5.1-5.4")
+conditionalPanel(condition = "input.description != '-'",
+                uiOutput("excerpt_ui")
                   )
 ```
 
-Row
+Row {.tabset}
 -----------------------------------------------------------------------
 
 ```{r reactive-inputs}
@@ -64,7 +61,7 @@ Row
                     filter(group_name %in% input$author) %>% 
                     pull(label) %>% 
                     unique),
-                selected = "Mark")
+                selected = "-")
     })
 
   output$language_ui <- renderUI({
@@ -75,7 +72,19 @@ Row
                            label %in% input$text) %>% 
                     pull(language) %>% 
                     unique),
-                selected = "grc")
+                selected = "-")
+    })
+  
+  output$description_ui <- renderUI({
+    selectInput(inputId = 'description', 
+                label = 'Description:',
+                c("-", perseus_catalog %>% 
+                    filter(group_name %in% input$author,
+                           label %in% input$text,
+                           language %in% input$language) %>% 
+                    pull(description) %>% 
+                    unique),
+                selected = "-")
     })
 ``` 
 
@@ -84,42 +93,78 @@ urn <- reactive(
   urn <- perseus_catalog %>% 
   filter(group_name == input$author,
          label == input$text,
-         language == input$language) %>% 
+         language == input$language,
+         description == input$description) %>% 
   pull(urn) 
 )
 ```
 
-```{r urn-opts}
-  output$urn_ui <- renderUI({
-    selectInput(inputId = 'urn', 
-                label = 'Urn:',
-                urn())
-    })
+```{r get-all-text}
+text_all <- reactive({
+    text <- get_perseus_text(urn = urn(), excerpt = NULL) %>% 
+      select(text, section)
+})
 
 ```
 
 ```{r reactive-excerpt}
-## NEED TO BE ABLE TO EXTRACT UNIQUE LIST OF EXCERPTS FOR THIS
+  output$excerpt_ui <- renderUI({
+    
+    excerpt_opts <- text_all() %>% 
+                    pull(section) %>% 
+      as.list
+    
+    selectInput(inputId = 'excerpt', 
+                label = 'Excerpt:',
+                choices = excerpt_opts,
+                multiple = TRUE)
+    })
 ```
 
-### Passage
+### Passage 
 
-```{r passage}
-renderText({
-  text <- get_perseus_text(urn = input$urn, excerpt = input$excerpt)
-text$text
-}
+```{r get-text}
+text <- reactive(
+  text_all() %>% 
+    filter(section %in% input$excerpt)
 )
 
 ```
 
 
-### Parsed Grammer Table {.tabset data-height=800}
+```{r passage}
+DT::renderDataTable({
+  text()
+},
+      options = list(
+      pageLength = 5,
+      scrollX = TRUE,
+      scrollY = TRUE,
+      orderClasses = TRUE,
+      rownames = FALSE)
+)
+
+```
+
+
+### Parsed Grammer Table
 
 ```{r grammer-tab}
 DT::renderDataTable({
-  parse_excerpt(input$urn, input$excerpt)
-}
+  purrr::map_dfr(input$excerpt, function(x) {
+    x <- as.character(x)
+    
+    if (!grepl("\\.", x)) {
+          excerpt <- paste0("1.", x) 
+    }
+    parse_excerpt(urn(), excerpt = x)})
+},
+      options = list(
+      pageLength = 5,
+      scrollX = TRUE,
+      scrollY = TRUE,
+      orderClasses = TRUE,
+      rownames = FALSE)
 )
 ```
 
