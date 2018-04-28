@@ -23,4 +23,4 @@ docker pull seabbs/showmeperseus
 docker run -d -p 8787:8787 -p 3838:3838 -p 54321:54321 -e USER=ShowMePerseus -e PASSWORD=ShowMePerseus --name  seabbs/showmeperseus
 ```
 
-The Rstudio development enviroment can be found at :8787 at your local machines ip (or at `localhost:`). The shiny server can similarly be found on port :3838.
+The Rstudio development enviroment can be found at :8787 at your local machines ip (or at `localhost:`).
